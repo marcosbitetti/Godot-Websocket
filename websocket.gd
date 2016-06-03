@@ -4,12 +4,23 @@ extends StreamPeerTCP
 const MAGIC_STRING = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 const USER_AGENT = "Godot-client"
 
+
+const MESSAGE_RECIEVED = "msg_recieved"
+const BINARY_RECIEVED = "binary_recieved"
+
 var thread = Thread.new()
 var host = '127.0.0.1'
 var port = 80
 var TIMEOUT = 30
 var error = ''
 var messages = []
+var reciever = null
+var reciever_f = null
+var reciever_binary = null
+var reciever_binary_f = null
+
+var close_listener = Node.new()
+var dispatcher = Reference.new()
 
 func _run(_self):
 	###
@@ -86,29 +97,61 @@ func _run(_self):
 		return
 	
 	data = ''
+	var is_reading_frame = false
+	var size = 0
+	var byte = 0
+	var fin = 0
+	var opcode = 0
 	while is_connected():
 		if get_available_bytes()>0:
-			#printt('length', get_available_bytes())
-			# frame
-			var byte = get_8()
-			#var fin = (byte>>7) & 0x01
-			var fin = byte & 0x80
-			var opcode = byte & 0x0F
-			byte = get_8()
-			#var mskd = (byte>>7) & 0x01
-			var mskd = byte & 0x80
-			var payload = byte & 0x7F
-			#printt('length', get_available_bytes())
-			#printt(fin,mskd,opcode,payload)
-			#if fin:
-			#data += get_string(get_available_bytes())
-			var st = RawArray()
-			for i in range(get_available_bytes()):
-				st.push_back(get_u8())
-			print(st.get_string_from_ascii())
-		elif data.length()>0:
-			print(data)
-			data = ''
+			if not is_reading_frame:
+				# frame
+				byte = get_8()
+				fin = byte & 0x80
+				opcode = byte & 0x0F
+				byte = get_8()
+				var mskd = byte & 0x80
+				var payload = byte & 0x7F
+				#printt('length', get_available_bytes())
+				#printt(fin,mskd,opcode,payload)
+				#if fin:
+				#data += get_string(get_available_bytes())
+				if payload<126:
+					# size of data = payload
+					data += get_string(payload)
+					if fin:
+						if reciever:
+							dispatcher.emit_signal(MESSAGE_RECIEVED, data)
+						data = ''
+				else:
+					size = 0
+					if payload==126:
+						# 16-bit size
+						size = get_u16()
+						#printt(size,'of data')
+					if get_available_bytes()<size:
+						is_reading_frame = true
+						size -= get_available_bytes()
+						data += get_string(get_available_bytes())
+					else:
+						size = 0
+						data += get_string(get_available_bytes())
+						if fin:
+							if reciever:
+								dispatcher.emit_signal(MESSAGE_RECIEVED, data)
+							data = ''
+			else:
+				if size<=get_available_bytes():
+					size = 0
+					data += get_string(get_available_bytes())
+					is_reading_frame = false
+					if fin:
+						if reciever:
+							dispatcher.emit_signal(MESSAGE_RECIEVED, data)
+						data = ''
+				else:
+					size -= get_available_bytes()
+					data += get_string(get_available_bytes())
 		
 		# message to send?
 		while messages.size()>0:
@@ -142,8 +185,35 @@ func start(host,port):
 		thread.start(self,'_run', self)
 	else:
 		print('no')
-		
+
+func set_reciever(o,f):
+	if reciever:
+		unset_reciever()
+	reciever = o
+	reciever_f = f
+	dispatcher.connect( MESSAGE_RECIEVED, reciever, reciever_f)
+
+func set_binary_reciever(o,f):
+	if reciever_binary:
+		unset_binary_reciever()
+	reciever_binary = o
+	reciever_binary_f = f
+	dispatcher.connect( MESSAGE_RECIEVED, reciever_binary, reciever_binary_f)
+
+func unset_reciever():
+	dispatcher.disconnect( MESSAGE_RECIEVED, reciever, reciever_f)
+	reciever = null
+	reciever_f = null
+
+func unset_binary_reciever():
+	dispatcher.disconnect( MESSAGE_RECIEVED, reciever_binary, reciever_binary_f)
+	reciever_binary = null
+	reciever_binary_f = null
+
+
 	
-	
+func _init(reference).():
+	dispatcher.add_user_signal(MESSAGE_RECIEVED)
+	dispatcher.add_user_signal(BINARY_RECIEVED)
 
 
