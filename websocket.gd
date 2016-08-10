@@ -10,6 +10,8 @@ const BINARY_RECIEVED = "binary_recieved"
 
 var thread = Thread.new()
 var host = '127.0.0.1'
+var host_only = host
+var path = null
 var port = 80
 var TIMEOUT = 30
 var error = ''
@@ -48,8 +50,8 @@ func _run(_self):
 	var data = ''
 	
 	
-	header  = "GET ws://"+_host+"/ HTTP/1.1\r\n"
-	header += "Host: "+_host+"\r\n"
+	header  = "GET /"+self.path+" HTTP/1.1\r\n"
+	header += "Host: "+self.host_only+"\r\n"
 	header += "Connection: Upgrade\r\n"
 	header += "Pragma: no-cache\r\n"
 	header += "Cache-Control: no-cache\r\n"
@@ -63,7 +65,7 @@ func _run(_self):
 	header += "Sec-WebSocket-Key: 6Aw8vTgcG5EvXdQywVvbh_3fMxvd4Q7dcL2caAHAFjV\r\n"
 	header += "Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n"
 	header += "\r\n"
-	#print(header)
+	print(header)
 	
 	if OK!=put_data( header.to_ascii() ):
 		print('erro ao enviar headers de handshake')
@@ -94,6 +96,7 @@ func _run(_self):
 	
 	if not connection_ok:
 		print(data)
+		print("Not connection ok")
 		return
 	
 	data = ''
@@ -176,8 +179,13 @@ func send(msg):
 	messages.append(msg)
 
 
-func start(host,port):
-	self.host = host
+func start(host,port,path=null):
+	self.host_only = host
+	if path == null:
+		self.host = host
+	else:
+		self.host = host+"/"+path
+	self.path = path
 	self.port = port
 	set_big_endian(true)
 	print(IP.get_local_addresses())
