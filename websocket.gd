@@ -65,10 +65,10 @@ func _run(_self):
 	header += "Sec-WebSocket-Key: 6Aw8vTgcG5EvXdQywVvbh_3fMxvd4Q7dcL2caAHAFjV\r\n"
 	header += "Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n"
 	header += "\r\n"
-	print(header)
+	#print(header)
 	
 	if OK!=put_data( header.to_ascii() ):
-		print('erro ao enviar headers de handshake')
+		print('error sending handshake headers')
 		return
 
 	data = ''
@@ -95,7 +95,7 @@ func _run(_self):
 		# other headers can by cheched here
 	
 	if not connection_ok:
-		print(data)
+		#print(data)
 		print("Not connection ok")
 		return
 	
@@ -165,12 +165,14 @@ func _run(_self):
 			var byte = 0x80 # fin
 			byte = byte | 0x01 # text frame
 			put_8(byte)
-			# no mask
-			byte = msg.length() # payload size
+			byte = 0x80 | msg.length() # mask flag and payload size
 			put_u8(byte)
-			for i in range(msg.length()):
-				put_u8(msg.ord_at(i))
-			print(msg)
+			byte = randi() # mask 32 bit int
+			put_32(byte)
+			var masked = _mask(byte,msg)
+			for i in range(masked.size()):
+				put_u8(masked[i])
+			print(msg+" sent")
 			
 		OS.delay_msec(3)
 	
@@ -217,11 +219,21 @@ func unset_binary_reciever():
 	dispatcher.disconnect( MESSAGE_RECIEVED, reciever_binary, reciever_binary_f)
 	reciever_binary = null
 	reciever_binary_f = null
-
-
 	
 func _init(reference).():
 	dispatcher.add_user_signal(MESSAGE_RECIEVED)
 	dispatcher.add_user_signal(BINARY_RECIEVED)
 
+func _mask(_m, _d):
+	_m = int_to_hex(_m)
+	_d=_d.to_utf8()
+	var ret = []
+	for i in range(_d.size()):
+		ret.append(_d[i] ^ _m[i % 4])
+	return ret
 
+func int_to_hex(n):
+	n = var2bytes(n)
+	n.invert()
+	n.resize(n.size()-4)
+	return n
