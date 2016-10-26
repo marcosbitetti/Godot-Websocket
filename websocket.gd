@@ -185,6 +185,7 @@ func start(host,port,path=null):
 	self.host_only = host
 	if path == null:
 		self.host = host
+		path = ''
 	else:
 		self.host = host+"/"+path
 	self.path = path
