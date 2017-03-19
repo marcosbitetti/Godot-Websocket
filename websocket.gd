@@ -1,12 +1,11 @@
-
 extends StreamPeerTCP
 
 const MAGIC_STRING = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 const USER_AGENT = "Godot-client"
 
 
-const MESSAGE_RECIEVED = "msg_recieved"
-const BINARY_RECIEVED = "binary_recieved"
+const MESSAGE_RECEIVED = "msg_received"
+const BINARY_RECEIVED = "binary_received"
 
 var thread = Thread.new()
 var host = '127.0.0.1'
@@ -16,10 +15,10 @@ var port = 80
 var TIMEOUT = 30
 var error = ''
 var messages = []
-var reciever = null
-var reciever_f = null
-var reciever_binary = null
-var reciever_binary_f = null
+var receiver = null
+var receiver_f = null
+var receiver_binary = null
+var receiver_binary_f = null
 
 var close_listener = Node.new()
 var dispatcher = Reference.new()
@@ -123,8 +122,8 @@ func _run(_self):
 					# size of data = payload
 					data += get_string(payload)
 					if fin:
-						if reciever:
-							dispatcher.emit_signal(MESSAGE_RECIEVED, data)
+						if receiver:
+							dispatcher.emit_signal(MESSAGE_RECEIVED, data)
 						data = ''
 				else:
 					size = 0
@@ -140,8 +139,8 @@ func _run(_self):
 						size = 0
 						data += get_string(get_available_bytes())
 						if fin:
-							if reciever:
-								dispatcher.emit_signal(MESSAGE_RECIEVED, data)
+							if receiver:
+								dispatcher.emit_signal(MESSAGE_RECEIVED, data)
 							data = ''
 			else:
 				if size<=get_available_bytes():
@@ -149,8 +148,8 @@ func _run(_self):
 					data += get_string(get_available_bytes())
 					is_reading_frame = false
 					if fin:
-						if reciever:
-							dispatcher.emit_signal(MESSAGE_RECIEVED, data)
+						if receiver:
+							dispatcher.emit_signal(MESSAGE_RECEIVED, data)
 						data = ''
 				else:
 					size -= get_available_bytes()
@@ -197,33 +196,33 @@ func start(host,port,path=null):
 	else:
 		print('no')
 
-func set_reciever(o,f):
-	if reciever:
-		unset_reciever()
-	reciever = o
-	reciever_f = f
-	dispatcher.connect( MESSAGE_RECIEVED, reciever, reciever_f)
+func set_receiver(o,f):
+	if receiver:
+		unset_receiver()
+	receiver = o
+	receiver_f = f
+	dispatcher.connect( MESSAGE_RECEIVED, receiver, receiver_f)
 
-func set_binary_reciever(o,f):
-	if reciever_binary:
-		unset_binary_reciever()
-	reciever_binary = o
-	reciever_binary_f = f
-	dispatcher.connect( MESSAGE_RECIEVED, reciever_binary, reciever_binary_f)
+func set_binary_receiver(o,f):
+	if receiver_binary:
+		unset_binary_receiver()
+	receiver_binary = o
+	receiver_binary_f = f
+	dispatcher.connect( MESSAGE_RECEIVED, receiver_binary, receiver_binary_f)
 
-func unset_reciever():
-	dispatcher.disconnect( MESSAGE_RECIEVED, reciever, reciever_f)
-	reciever = null
-	reciever_f = null
+func unset_receiver():
+	dispatcher.disconnect( MESSAGE_RECEIVED, receiver, receiver_f)
+	receiver = null
+	receiver_f = null
 
-func unset_binary_reciever():
-	dispatcher.disconnect( MESSAGE_RECIEVED, reciever_binary, reciever_binary_f)
-	reciever_binary = null
-	reciever_binary_f = null
+func unset_binary_receiver():
+	dispatcher.disconnect( MESSAGE_RECEIVED, receiver_binary, receiver_binary_f)
+	receiver_binary = null
+	receiver_binary_f = null
 	
 func _init(reference).():
-	dispatcher.add_user_signal(MESSAGE_RECIEVED)
-	dispatcher.add_user_signal(BINARY_RECIEVED)
+	dispatcher.add_user_signal(MESSAGE_RECEIVED)
+	dispatcher.add_user_signal(BINARY_RECEIVED)
 
 func _mask(_m, _d):
 	_m = int_to_hex(_m)
