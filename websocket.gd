@@ -76,9 +76,12 @@ func _run(_self):
 	var start_read = false
 	while true:
 		if get_available_bytes()>0 and not start_read:
-			data += get_string(get_available_bytes())
-			start_read = true
-		elif get_available_bytes()==0 and start_read:
+			while true:
+				data += get_string(1)
+				if data.find("\r\n\r\n")>-1:
+					start_read = true					
+					break;
+		elif start_read:
 			break
 		
 		OS.delay_msec(100)
